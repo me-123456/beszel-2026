@@ -654,7 +654,7 @@ export default memo(function SystemDetail({ id }: { id: string }) {
 					)}
 
 					{/* Load Average chart */}
-					{chartData.agentVersion?.minor >= 12 && (
+					{/* {chartData.agentVersion?.minor >= 12 && (
 						<ChartCard
 							empty={dataEmpty}
 							grid={grid}
@@ -664,10 +664,10 @@ export default memo(function SystemDetail({ id }: { id: string }) {
 						>
 							<LoadAverageChart chartData={chartData} />
 						</ChartCard>
-					)}
+					)} */}
 
 					{/* Temperature chart */}
-					{systemStats.at(-1)?.stats.t && (
+					{/* {systemStats.at(-1)?.stats.t && (
 						<div ref={temperatureChartRef} className={cn("odd:last-of-type:col-span-full", { "col-span-full": !grid })}>
 							<ChartCard
 								empty={dataEmpty}
@@ -680,7 +680,7 @@ export default memo(function SystemDetail({ id }: { id: string }) {
 								<TemperatureChart chartData={chartData} />
 							</ChartCard>
 						</div>
-					)}
+					)} */}
 
 					{/* Battery chart */}
 					{systemStats.at(-1)?.stats.bat && (
