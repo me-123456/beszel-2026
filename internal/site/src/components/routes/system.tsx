@@ -450,6 +450,77 @@ export default memo(function SystemDetail({ id }: { id: string }) {
 					<ChartCard
 						empty={dataEmpty}
 						grid={grid}
+						title={t`Bandwidth`}
+						cornerEl={
+							<div className="flex gap-2">
+								{maxValSelect}
+								<NetworkSheet chartData={chartData} dataEmpty={dataEmpty} grid={grid} maxValues={maxValues} />
+							</div>
+						}
+						description={t`Network traffic of public interfaces`}
+					>
+						<AreaChartDefault
+							chartData={chartData}
+							maxToggled={maxValues}
+							dataPoints={[
+								{
+									label: t`Sent`,
+									// use bytes if available, otherwise multiply old MB (can remove in future)
+									dataKey(data: SystemStatsRecord) {
+										if (showMax) {
+											return data?.stats?.bm?.[0] ?? (data?.stats?.nsm ?? 0) * 1024 * 1024
+										}
+										return data?.stats?.b?.[0] ?? (data?.stats?.ns ?? 0) * 1024 * 1024
+									},
+									color: 5,
+									opacity: 0.2,
+								},
+								{
+									label: t`Received`,
+									dataKey(data: SystemStatsRecord) {
+										if (showMax) {
+											return data?.stats?.bm?.[1] ?? (data?.stats?.nrm ?? 0) * 1024 * 1024
+										}
+										return data?.stats?.b?.[1] ?? (data?.stats?.nr ?? 0) * 1024 * 1024
+									},
+									color: 2,
+									opacity: 0.2,
+								},
+							]
+								// try to place the lesser number in front for better visibility
+								.sort(() => (systemStats.at(-1)?.stats.b?.[1] ?? 0) - (systemStats.at(-1)?.stats.b?.[0] ?? 0))}
+							tickFormatter={(val) => {
+								const { value, unit } = formatBytes(val, true, userSettings.unitNet, false)
+								return `${toFixedFloat(value, value >= 10 ? 0 : 1)} ${unit}`
+							}}
+							contentFormatter={(data) => {
+								const { value, unit } = formatBytes(data.value, true, userSettings.unitNet, false)
+								return `${decimalString(value, value >= 100 ? 1 : 2)} ${unit}`
+							}}
+							showTotal={true}
+						/>
+					</ChartCard>
+
+					{containerFilterBar && containerData.length > 0 && (
+						<ChartCard
+							empty={dataEmpty}
+							grid={grid}
+							title={dockerOrPodman(t`Docker Network I/O`, isPodman)}
+							description={dockerOrPodman(t`Network traffic of docker containers`, isPodman)}
+							cornerEl={containerFilterBar}
+						>
+							<ContainerChart
+								chartData={chartData}
+								chartType={ChartType.Network}
+								dataKey="n"
+								chartConfig={containerChartConfigs.network}
+							/>
+						</ChartCard>
+					)}
+
+					<ChartCard
+						empty={dataEmpty}
+						grid={grid}
 						title={t`CPU Usage`}
 						description={t`Average system-wide CPU utilization`}
 						cornerEl={
@@ -569,77 +640,6 @@ export default memo(function SystemDetail({ id }: { id: string }) {
 							showTotal={true}
 						/>
 					</ChartCard>
-
-					<ChartCard
-						empty={dataEmpty}
-						grid={grid}
-						title={t`Bandwidth`}
-						cornerEl={
-							<div className="flex gap-2">
-								{maxValSelect}
-								<NetworkSheet chartData={chartData} dataEmpty={dataEmpty} grid={grid} maxValues={maxValues} />
-							</div>
-						}
-						description={t`Network traffic of public interfaces`}
-					>
-						<AreaChartDefault
-							chartData={chartData}
-							maxToggled={maxValues}
-							dataPoints={[
-								{
-									label: t`Sent`,
-									// use bytes if available, otherwise multiply old MB (can remove in future)
-									dataKey(data: SystemStatsRecord) {
-										if (showMax) {
-											return data?.stats?.bm?.[0] ?? (data?.stats?.nsm ?? 0) * 1024 * 1024
-										}
-										return data?.stats?.b?.[0] ?? (data?.stats?.ns ?? 0) * 1024 * 1024
-									},
-									color: 5,
-									opacity: 0.2,
-								},
-								{
-									label: t`Received`,
-									dataKey(data: SystemStatsRecord) {
-										if (showMax) {
-											return data?.stats?.bm?.[1] ?? (data?.stats?.nrm ?? 0) * 1024 * 1024
-										}
-										return data?.stats?.b?.[1] ?? (data?.stats?.nr ?? 0) * 1024 * 1024
-									},
-									color: 2,
-									opacity: 0.2,
-								},
-							]
-								// try to place the lesser number in front for better visibility
-								.sort(() => (systemStats.at(-1)?.stats.b?.[1] ?? 0) - (systemStats.at(-1)?.stats.b?.[0] ?? 0))}
-							tickFormatter={(val) => {
-								const { value, unit } = formatBytes(val, true, userSettings.unitNet, false)
-								return `${toFixedFloat(value, value >= 10 ? 0 : 1)} ${unit}`
-							}}
-							contentFormatter={(data) => {
-								const { value, unit } = formatBytes(data.value, true, userSettings.unitNet, false)
-								return `${decimalString(value, value >= 100 ? 1 : 2)} ${unit}`
-							}}
-							showTotal={true}
-						/>
-					</ChartCard>
-
-					{containerFilterBar && containerData.length > 0 && (
-						<ChartCard
-							empty={dataEmpty}
-							grid={grid}
-							title={dockerOrPodman(t`Docker Network I/O`, isPodman)}
-							description={dockerOrPodman(t`Network traffic of docker containers`, isPodman)}
-							cornerEl={containerFilterBar}
-						>
-							<ContainerChart
-								chartData={chartData}
-								chartType={ChartType.Network}
-								dataKey="n"
-								chartConfig={containerChartConfigs.network}
-							/>
-						</ChartCard>
-					)}
 
 					{/* Swap chart */}
 					{(systemStats.at(-1)?.stats.su ?? 0) > 0 && (
