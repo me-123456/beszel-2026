@@ -2,7 +2,7 @@ package alerts
 
 import (
 	"fmt"
-	"strings"
+	"time"
 
 	"github.com/pocketbase/pocketbase/core"
 )
@@ -30,18 +30,26 @@ func (am *AlertManager) handleSmartDeviceAlert(e *core.RecordEvent) error {
 	}
 
 	systemName := systemRecord.GetString("name")
+	systemHost := systemRecord.GetString("host")
 	deviceName := e.Record.GetString("name")
 	model := e.Record.GetString("model")
-	statusLabel := smartStateLabel(newState)
+	stateLabel := smartStateLabelCN(newState)
+
+	currentTime := time.Now().Format("2006-01-02 15:04:05")
 
 	// Build alert message
-	title := fmt.Sprintf("SMART %s on %s: %s %s", statusLabel, systemName, deviceName, smartStateEmoji(newState))
-	var message string
-	if model != "" {
-		message = fmt.Sprintf("Disk %s (%s) SMART status changed to %s", deviceName, model, newState)
-	} else {
-		message = fmt.Sprintf("Disk %s SMART status changed to %s", deviceName, newState)
+	title := fmt.Sprintf("%s 磁盘健康告警", smartStateEmoji(newState))
+
+	message := fmt.Sprintf("节点名称：%s", systemName)
+	if systemHost != "" {
+		message += fmt.Sprintf("\nIP 地址：%s", systemHost)
 	}
+	message += fmt.Sprintf("\n磁盘设备：%s", deviceName)
+	if model != "" {
+		message += fmt.Sprintf("\n磁盘型号：%s", model)
+	}
+	message += fmt.Sprintf("\nSMART 状态：%s", stateLabel)
+	message += fmt.Sprintf("\n时间：%s", currentTime)
 
 	// Get users associated with the system
 	userIDs := systemRecord.GetStringSlice("users")
@@ -56,8 +64,8 @@ func (am *AlertManager) handleSmartDeviceAlert(e *core.RecordEvent) error {
 			SystemID: systemID,
 			Title:    title,
 			Message:  message,
-			Link:     am.hub.MakeLink("system", systemID),
-			LinkText: "View " + systemName,
+			Link:     "",
+			LinkText: "",
 		}); err != nil {
 			e.App.Logger().Error("Failed to send SMART alert", "err", err, "userID", userID)
 		}
@@ -97,11 +105,15 @@ func smartStateEmoji(state string) string {
 	}
 }
 
-func smartStateLabel(state string) string {
+func smartStateLabelCN(state string) string {
 	switch state {
+	case "PASSED":
+		return "正常"
+	case "WARNING":
+		return "警告"
 	case "FAILED":
-		return "failure"
+		return "故障"
 	default:
-		return strings.ToLower(state)
+		return state
 	}
 }

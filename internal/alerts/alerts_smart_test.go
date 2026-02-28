@@ -51,10 +51,10 @@ func TestSmartDeviceAlert(t *testing.T) {
 
 	// Check the email content
 	lastMessage := hub.TestMailer.LastMessage()
-	assert.Contains(t, lastMessage.Subject, "SMART failure on test-system")
-	assert.Contains(t, lastMessage.Subject, "/dev/sda")
-	assert.Contains(t, lastMessage.Text, "Samsung SSD 970 EVO")
-	assert.Contains(t, lastMessage.Text, "FAILED")
+	assert.Contains(t, lastMessage.Subject, "磁盘健康告警")
+	assert.Contains(t, lastMessage.Text, "磁盘设备：/dev/sda")
+	assert.Contains(t, lastMessage.Text, "磁盘型号：Samsung SSD 970 EVO")
+	assert.Contains(t, lastMessage.Text, "SMART 状态：故障")
 }
 
 func TestSmartDeviceAlertPassedToWarning(t *testing.T) {
@@ -87,8 +87,8 @@ func TestSmartDeviceAlertPassedToWarning(t *testing.T) {
 
 	assert.EqualValues(t, 1, hub.TestMailer.TotalSend(), "should have 1 email sent after state changed to WARNING")
 	lastMessage := hub.TestMailer.LastMessage()
-	assert.Contains(t, lastMessage.Subject, "SMART warning on test-system")
-	assert.Contains(t, lastMessage.Text, "WARNING")
+	assert.Contains(t, lastMessage.Subject, "磁盘健康告警")
+	assert.Contains(t, lastMessage.Text, "SMART 状态：警告")
 }
 
 func TestSmartDeviceAlertWarningToFailed(t *testing.T) {
@@ -121,8 +121,8 @@ func TestSmartDeviceAlertWarningToFailed(t *testing.T) {
 
 	assert.EqualValues(t, 1, hub.TestMailer.TotalSend(), "should have 1 email sent after state changed from WARNING to FAILED")
 	lastMessage := hub.TestMailer.LastMessage()
-	assert.Contains(t, lastMessage.Subject, "SMART failure on test-system")
-	assert.Contains(t, lastMessage.Text, "FAILED")
+	assert.Contains(t, lastMessage.Subject, "磁盘健康告警")
+	assert.Contains(t, lastMessage.Text, "SMART 状态：故障")
 }
 
 func TestSmartDeviceAlertNoAlertOnNonPassedToFailed(t *testing.T) {
@@ -257,8 +257,8 @@ func TestSmartDeviceAlertWithoutModel(t *testing.T) {
 	// Verify that an email was sent
 	assert.EqualValues(t, 1, hub.TestMailer.TotalSend(), "should have 1 email sent")
 
-	// Check that the email doesn't have empty parentheses for missing model
+	// Check that the email contains the device name
 	lastMessage := hub.TestMailer.LastMessage()
-	assert.NotContains(t, lastMessage.Text, "()", "should not have empty parentheses for missing model")
-	assert.Contains(t, lastMessage.Text, "/dev/sdb")
+	assert.Contains(t, lastMessage.Text, "磁盘设备：/dev/sdb")
+	assert.NotContains(t, lastMessage.Text, "磁盘型号", "should not have model field for missing model")
 }

@@ -3,7 +3,6 @@ package alerts
 import (
 	"encoding/json"
 	"fmt"
-	"strings"
 	"time"
 
 	"github.com/henrygd/beszel/internal/entities/system"
@@ -253,7 +252,7 @@ func (am *AlertManager) HandleSystemAlerts(systemRecord *core.Record, data *syst
 				sumPct := float32(value)
 				if sumPct > maxPct {
 					maxPct = sumPct
-					alert.descriptor = fmt.Sprintf("Usage of %s", key)
+					alert.descriptor = fmt.Sprintf("%s 使用率", key)
 				}
 			}
 			alert.val = float64(maxPct / float32(alert.count))
@@ -263,7 +262,7 @@ func (am *AlertManager) HandleSystemAlerts(systemRecord *core.Record, data *syst
 				sumTemp := float32(value) / float32(alert.count)
 				if sumTemp > maxTemp {
 					maxTemp = sumTemp
-					alert.descriptor = fmt.Sprintf("Highest sensor %s", key)
+					alert.descriptor = fmt.Sprintf("最高传感器 %s", key)
 				}
 			}
 			alert.val = float64(maxTemp)
@@ -300,61 +299,76 @@ func (am *AlertManager) HandleSystemAlerts(systemRecord *core.Record, data *syst
 }
 
 func (am *AlertManager) sendSystemAlert(alert SystemAlertData) {
-	// log.Printf("Sending alert %s: val %f | count %d | threshold %f\n", alert.name, alert.val, alert.count, alert.threshold)
 	systemName := alert.systemRecord.GetString("name")
+	systemHost := alert.systemRecord.GetString("host")
 
-	// change Disk to Disk usage
-	if alert.name == "Disk" {
-		alert.name += " usage"
-	}
-	// format LoadAvg5 and LoadAvg15
-	if after, ok := strings.CutPrefix(alert.name, "LoadAvg"); ok {
-		alert.name = after + "m Load"
-	}
+	alertNameCN := alertNameToChinese(alert.name)
 
-	// make title alert name lowercase if not CPU or GPU
-	titleAlertName := alert.name
-	if titleAlertName != "CPU" && titleAlertName != "GPU" {
-		titleAlertName = strings.ToLower(titleAlertName)
-	}
-
-	var subject string
-	lowAlert := isLowAlert(alert.name)
-	if alert.triggered {
-		if lowAlert {
-			subject = fmt.Sprintf("%s %s below threshold", systemName, titleAlertName)
-		} else {
-			subject = fmt.Sprintf("%s %s above threshold", systemName, titleAlertName)
-		}
-	} else {
-		if lowAlert {
-			subject = fmt.Sprintf("%s %s above threshold", systemName, titleAlertName)
-		} else {
-			subject = fmt.Sprintf("%s %s below threshold", systemName, titleAlertName)
-		}
-	}
-	minutesLabel := "minute"
-	if alert.min > 1 {
-		minutesLabel += "s"
-	}
 	if alert.descriptor == "" {
-		alert.descriptor = alert.name
+		alert.descriptor = alertNameCN
 	}
-	body := fmt.Sprintf("%s averaged %.2f%s for the previous %v %s.", alert.descriptor, alert.val, alert.unit, alert.min, minutesLabel)
+
+	currentTime := time.Now().Format("2006-01-02 15:04:05")
+
+	var emoji, statusText string
+	if alert.triggered {
+		emoji = "\U0001F534" // 🔴
+		statusText = alertNameCN + "告警触发"
+	} else {
+		emoji = "\U0001F7E2" // 🟢
+		statusText = alertNameCN + "告警恢复"
+	}
+
+	title := fmt.Sprintf("%s %s", emoji, statusText)
+
+	message := fmt.Sprintf("节点名称：%s", systemName)
+	if systemHost != "" {
+		message += fmt.Sprintf("\nIP 地址：%s", systemHost)
+	}
+	message += fmt.Sprintf("\n告警指标：%s", alert.descriptor)
+	message += fmt.Sprintf("\n当前值：%.2f%s", alert.val, alert.unit)
+	message += fmt.Sprintf("\n阈值：%.2f%s", alert.threshold, alert.unit)
+	message += fmt.Sprintf("\n持续时间：%v 分钟", alert.min)
+	message += fmt.Sprintf("\n时间：%s", currentTime)
 
 	alert.alertRecord.Set("triggered", alert.triggered)
 	if err := am.hub.Save(alert.alertRecord); err != nil {
-		// app.Logger().Error("failed to save alert record", "err", err)
 		return
 	}
 	am.SendAlert(AlertMessageData{
 		UserID:   alert.alertRecord.GetString("user"),
-		SystemID: alert.systemRecord.Id,
-		Title:    subject,
-		Message:  body,
-		Link:     am.hub.MakeLink("system", alert.systemRecord.Id),
-		LinkText: "View " + systemName,
+		Title:    title,
+		Message:  message,
+		Link:     "",
+		LinkText: "",
 	})
+}
+
+func alertNameToChinese(name string) string {
+	switch name {
+	case "CPU":
+		return "CPU"
+	case "Memory":
+		return "内存"
+	case "Disk":
+		return "磁盘"
+	case "Bandwidth":
+		return "带宽"
+	case "Temperature":
+		return "温度"
+	case "LoadAvg1":
+		return "1分钟负载"
+	case "LoadAvg5":
+		return "5分钟负载"
+	case "LoadAvg15":
+		return "15分钟负载"
+	case "GPU":
+		return "GPU"
+	case "Battery":
+		return "电池"
+	default:
+		return name
+	}
 }
 
 func isLowAlert(name string) bool {

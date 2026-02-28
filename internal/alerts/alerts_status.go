@@ -2,7 +2,6 @@ package alerts
 
 import (
 	"fmt"
-	"strings"
 	"time"
 
 	"github.com/pocketbase/dbx"
@@ -151,26 +150,48 @@ func (am *AlertManager) sendStatusAlert(alertStatus string, systemName string, a
 	}
 	am.hub.Save(alertRecord)
 
-	var emoji string
-	if alertStatus == "up" {
-		emoji = "\u2705" // Green checkmark emoji
-	} else {
-		emoji = "\U0001F534" // Red alert emoji
-	}
-
-	title := fmt.Sprintf("Connection to %s is %s %v", systemName, alertStatus, emoji)
-	message := strings.TrimSuffix(title, emoji)
-
 	// Get system ID for the link
 	systemID := alertRecord.GetString("system")
 
+	// Get system record to retrieve host/IP information
+	systemRecord, err := am.hub.FindRecordById("systems", systemID)
+	var systemHost string
+	if err == nil && systemRecord != nil {
+		systemHost = systemRecord.GetString("host")
+	}
+
+	// Format time
+	currentTime := time.Now().Format("2006-01-02 15:04:05")
+
+	var emoji, statusText string
+	var title, message string
+
+	if alertStatus == "up" {
+		emoji = "\U0001F7E2" // 🟢 Green circle emoji
+		statusText = "节点已恢复在线"
+		title = fmt.Sprintf("%s %s", emoji, statusText)
+		message = fmt.Sprintf("节点名称：%s", systemName)
+		if systemHost != "" {
+			message += fmt.Sprintf("\nIP 地址：%s", systemHost)
+		}
+		message += fmt.Sprintf("\n时间：%s", currentTime)
+	} else {
+		emoji = "\U0001F534" // 🔴 Red circle emoji
+		statusText = "节点已离线"
+		title = fmt.Sprintf("%s %s", emoji, statusText)
+		message = fmt.Sprintf("节点名称：%s", systemName)
+		if systemHost != "" {
+			message += fmt.Sprintf("\nIP 地址：%s", systemHost)
+		}
+		message += fmt.Sprintf("\n时间：%s", currentTime)
+	}
+
 	return am.SendAlert(AlertMessageData{
 		UserID:   alertRecord.GetString("user"),
-		SystemID: systemID,
 		Title:    title,
 		Message:  message,
-		Link:     am.hub.MakeLink("system", systemID),
-		LinkText: "View " + systemName,
+		Link:     "",
+		LinkText: "",
 	})
 }
 

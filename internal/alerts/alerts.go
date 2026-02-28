@@ -292,7 +292,7 @@ func (am *AlertManager) SendTestNotification(e *core.RequestEvent) error {
 	if err != nil || data.URL == "" {
 		return e.BadRequestError("URL is required", err)
 	}
-	err = am.SendShoutrrrAlert(data.URL, "Test Alert", "This is a notification from Beszel.", am.hub.Settings().Meta.AppURL, "View Beszel")
+	err = am.SendShoutrrrAlert(data.URL, "测试通知", "这是一条来自 Beszel 的测试通知。", "", "")
 	if err != nil {
 		return e.JSON(200, map[string]string{"err": err.Error()})
 	}
